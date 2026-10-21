@@ -4,7 +4,7 @@
 set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo "run as root"; exit 1; }
 systemctl disable --now emonitor-agent 2>/dev/null || true
-rm -f /etc/systemd/system/emonitor-agent.service /usr/local/bin/emonitor-agent
+rm -f /etc/systemd/system/emonitor-agent.service /usr/local/bin/emonitor-agent /usr/local/sbin/emonitor-agent-uninstall
 systemctl daemon-reload
 rm -rf /opt/emonitor-agent
 if [[ "${1:-}" == "--purge" ]]; then

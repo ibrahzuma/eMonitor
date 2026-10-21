@@ -5,6 +5,7 @@ import {
   BellRing,
   Boxes,
   CalendarClock,
+  Download,
   FileBarChart2,
   Globe,
   LayoutDashboard,
@@ -36,6 +37,7 @@ export const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [
       { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
       { to: "/servers", label: "Servers", icon: Server },
+      { to: "/agents/install", label: "Install Agent", icon: Download, indent: true },
       { to: "/inventory", label: "Inventory", icon: Boxes, indent: true },
       { to: "/websites", label: "Websites", icon: Globe },
       { to: "/network-devices", label: "Network Devices", icon: Network },

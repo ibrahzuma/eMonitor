@@ -10,17 +10,24 @@ listed in the local config. Optional log tailing of locally allowlisted files (p
 rotation- and truncation-safe.
 
 ## Install
-1. In the UI: *Server → Agent tab → Create enrollment token* (single-use, expires) or *Integrations → Agents*
-   (multi-use token for fleets).
-2. Copy the `agent/` directory to the host and run:
+The portal has a step-by-step guide at **Monitor → Install Agent** (`/agents/install`): create a token, copy the
+ready-made command, verify, configure, upgrade, uninstall, troubleshoot.
+
+1. Create an enrollment token (Install Agent page, *Integrations → Agent enrollment*, or *Server → Agent tab*).
+2. On the server, as a user with sudo:
    ```bash
-   sudo ./scripts/install.sh --server https://monitor.example.com --token emt_... --services "ssh nginx"
+   curl -fsSL https://<portal>/api/v1/agents/install.sh | sudo bash -s -- --token emt_... [--services "ssh nginx"] [--ca /path/ca.pem]
    ```
-   Use `--ca /path/ca.pem` for a private CA. The script creates the `emonitor-agent` user, installs to
-   `/opt/emonitor-agent`, writes `/etc/emonitor-agent/agent.json`, enrolls (credentials in
-   `/etc/emonitor-agent/credentials.json`, mode 0600) and enables `emonitor-agent.service`.
-3. Edit `/etc/emonitor-agent/agent.json` (see `agent/agent.example.json`) for services and log files, then
-   `systemctl restart emonitor-agent`.
+   The bootstrap script (served by the portal, `GET /api/v1/agents/install.sh`) downloads the agent package
+   (`GET /api/v1/agents/package.tar.gz`), verifies its SHA-256, and runs `scripts/install.sh`, which creates the
+   `emonitor-agent` user, installs to `/opt/emonitor-agent`, writes `/etc/emonitor-agent/agent.json`, enrolls
+   (credentials in `/etc/emonitor-agent/credentials.json`, mode 0600) and starts `emonitor-agent.service`.
+   Re-running it on an enrolled host does not enroll again (use `--reenroll` with a new token to replace credentials).
+3. Optional: edit `/etc/emonitor-agent/agent.json` (see `agent/agent.example.json`) for services and log files,
+   then `systemctl restart emonitor-agent`.
+
+Offline: download the package from the guide page, copy it to the server, `tar -xzf` it and run
+`sudo bash agent/scripts/install.sh --server https://<portal> --token emt_...`.
 
 Commands: `emonitor-agent status`, `emonitor-agent collect-once` (prints a sample, no network),
 `emonitor-agent version`.
@@ -42,17 +49,13 @@ Commands: `emonitor-agent status`, `emonitor-agent collect-once` (prints a sampl
 * Revoke a compromised agent in the UI (*Integrations → Agents → Revoke*); re-enroll with a new token.
 
 ## Upgrade
-Config and credentials are kept; only the code is replaced:
 ```bash
-sudo rsync -a --delete agent/monitor_agent/ /opt/emonitor-agent/monitor_agent/
-sudo cp agent/systemd/emonitor-agent.service /etc/systemd/system/ && sudo systemctl daemon-reload
-sudo systemctl restart emonitor-agent && emonitor-agent version
+curl -fsSL https://<portal>/api/v1/agents/install.sh | sudo bash -s -- --upgrade
 ```
-(Re-running `install.sh` would enroll again and needs a new token.) The agent reports its version;
-*Integrations → Agents* lists versions per host.
+Keeps configuration and credentials. *Integrations → Agents* lists the version reported by each host.
 
 ## Uninstall
-`sudo ./scripts/uninstall.sh [--purge]` and revoke the agent in the UI.
+`sudo emonitor-agent-uninstall [--purge]` (installed by the installer) and revoke the agent in the UI.
 
 ## Platform support
 Linux only in this release. Collectors implement the `Collector` protocol (`collectors.py`), so a Windows

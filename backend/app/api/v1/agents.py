@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Request
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,11 +27,63 @@ from app.models import Agent, EnrollmentToken, Organization, Resource, ServerDet
 from app.models.enums import AgentStatus, ResourceKind
 from app.monitoring.evaluator import agent_seen
 from app.schemas.common import ORM, Message
-from app.services import audit
+from app.services import agent_package, audit
 from app.telemetry.ingest import check_backpressure, publish_rows
 from app.telemetry.store import SEVERITY_NUM
 
 router = APIRouter(prefix="/agents", tags=["agents"])
+
+
+# ---------------------------------------------------------------- agent distribution (public)
+
+@router.get("/install.sh", response_class=PlainTextResponse,
+            dependencies=[Depends(limiter("agent_dl", "rate_limit_agent_download"))])
+async def agent_install_script():
+    """Bootstrap installer: `curl -fsSL <server>/api/v1/agents/install.sh | sudo bash -s -- --token <TOKEN>`.
+
+    Public by design (contains no secrets); enrollment still requires a valid token."""
+    try:
+        script = agent_package.bootstrap_script()
+    except FileNotFoundError:
+        raise NotFound("Agent package") from None
+    return PlainTextResponse(script, media_type="text/x-shellscript",
+                             headers={"Cache-Control": "no-cache", "Content-Disposition": "inline; filename=install.sh"})
+
+
+@router.get("/package.tar.gz", dependencies=[Depends(limiter("agent_dl", "rate_limit_agent_download"))])
+async def agent_package_download():
+    try:
+        pkg = agent_package.build_package()
+    except FileNotFoundError:
+        raise NotFound("Agent package") from None
+    return Response(pkg.data, media_type="application/gzip", headers={
+        "Content-Disposition": f"attachment; filename=emonitor-agent-{pkg.version}.tar.gz",
+        "X-Checksum-SHA256": pkg.sha256, "Cache-Control": "no-cache"})
+
+
+class AgentInfo(BaseModel):
+    server_url: str
+    install_script_url: str
+    package_url: str
+    agent_version: str
+    package_sha256: str
+    install_command_template: str
+    upgrade_command: str
+
+
+@router.get("/info", response_model=AgentInfo)
+async def agent_info(ctx: Ctx = Depends(require(Permission.VIEW))):
+    try:
+        pkg = agent_package.build_package()
+    except FileNotFoundError:
+        raise NotFound("Agent package") from None
+    base = agent_package.server_url()
+    return AgentInfo(
+        server_url=base, install_script_url=f"{base}/api/v1/agents/install.sh",
+        package_url=f"{base}/api/v1/agents/package.tar.gz", agent_version=pkg.version, package_sha256=pkg.sha256,
+        install_command_template=agent_package.install_command("<ENROLLMENT_TOKEN>"),
+        upgrade_command=f"curl -fsSL {base}/api/v1/agents/install.sh | sudo bash -s -- --upgrade",
+    )
 
 METRIC_NAME = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 SECRET_GRACE = timedelta(minutes=10)
@@ -91,8 +144,7 @@ async def create_token(body: EnrollmentTokenIn, ctx: Ctx = Depends(require(Permi
     audit.record(db, action="agent.enrollment_token_created", ctx=ctx, target_type="enrollment_token", target_id=rec.id,
                  details={"server_id": str(body.server_id) if body.server_id else None, "max_uses": rec.max_uses})
     await db.commit()
-    base = get_settings().public_base_url.rstrip("/")
-    cmd = (f"sudo emonitor-agent enroll --server {base} --token {token}")
+    cmd = agent_package.install_command(token)
     return EnrollmentTokenCreated.model_validate({**EnrollmentTokenOut.model_validate(rec).model_dump(),
                                                   "token": token, "install_command": cmd})
 

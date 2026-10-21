@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     rate_limit_sensitive: str = "20/300"
     rate_limit_api: str = "600/60"
     rate_limit_enroll: str = "20/3600"
+    rate_limit_agent_download: str = "120/300"
 
     # Ingestion / backpressure
     ingest_stream_maxlen: int = 200_000

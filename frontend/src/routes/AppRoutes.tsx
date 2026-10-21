@@ -30,6 +30,7 @@ const NotificationsPage = lazyNamed(() => import("@/pages/notifications/Notifica
 const MaintenancePage = lazyNamed(() => import("@/pages/maintenance/MaintenancePage"), "MaintenancePage");
 const ReportsPage = lazyNamed(() => import("@/pages/reports/ReportsPage"), "ReportsPage");
 const IntegrationsPage = lazyNamed(() => import("@/pages/integrations/IntegrationsPage"), "IntegrationsPage");
+const AgentInstallPage = lazyNamed(() => import("@/pages/integrations/AgentInstallPage"), "AgentInstallPage");
 const UsersPage = lazyNamed(() => import("@/pages/users/UsersPage"), "UsersPage");
 const AuditPage = lazyNamed(() => import("@/pages/audit/AuditPage"), "AuditPage");
 const SettingsPage = lazyNamed(() => import("@/pages/settings/SettingsPage"), "SettingsPage");
@@ -87,6 +88,7 @@ export function AppRoutes() {
         <Route path="maintenance" element={page(<MaintenancePage />)} />
         <Route path="reports" element={page(<ReportsPage />)} />
         <Route path="integrations" element={page(<IntegrationsPage />)} />
+        <Route path="agents/install" element={page(<AgentInstallPage />)} />
         <Route path="users" element={page(<UsersPage />)} />
         <Route path="audit" element={page(<AuditPage />)} />
         <Route path="settings" element={page(<SettingsPage />)} />

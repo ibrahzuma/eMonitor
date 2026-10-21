@@ -20,6 +20,7 @@ import type {
   Delivery,
   Dependency,
   DependencyMap,
+  AgentInfo,
   EnrollmentToken,
   EnrollmentTokenCreated,
   EnrollmentTokenIn,
@@ -233,6 +234,7 @@ export const savedSearchesApi = {
 
 export const agentsApi = {
   list: () => api.get<Agent[]>("/agents"),
+  info: () => api.get<AgentInfo>("/agents/info"),
   revoke: (id: string) => api.post<Message>(`/agents/${id}/revoke`),
   tokens: () => api.get<EnrollmentToken[]>("/agents/enrollment-tokens"),
   createToken: (body: EnrollmentTokenIn) => api.post<EnrollmentTokenCreated>("/agents/enrollment-tokens", body),

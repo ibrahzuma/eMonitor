@@ -41,6 +41,7 @@ export const qk = {
 
   agents: ["agents"] as const,
   enrollmentTokens: ["agents", "tokens"] as const,
+  agentInfo: ["agents", "info"] as const,
 
   incidents: ["incidents"] as const,
   incidentList: (q: Query) => ["incidents", "list", q] as const,

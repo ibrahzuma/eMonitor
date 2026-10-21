@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, KeyRound, ShieldOff } from "lucide-react";
 import * as React from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { agentsApi, metricsApi, serversApi } from "@/api/endpoints";
 import { qk } from "@/api/queryKeys";
 import { CodeBlock, DefinitionList, RelativeTime, StatusBadge, TagInput } from "@/components/common";
@@ -247,7 +247,8 @@ function AgentTab({ resource }: { resource: Resource }) {
           <CardHeader><CardTitle>{agent ? "Re-enroll agent" : "Install the agent"}</CardTitle></CardHeader>
           <CardContent className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
-              Generate a single-use token bound to this server. {agent ? "Re-enrolling replaces the current agent credentials." : ""}
+              Generate a single-use token bound to this server. {agent ? "Re-enrolling replaces the current agent credentials (add --reenroll to the command)." : ""}
+              {" "}See the <Link className="underline" to="/agents/install">installation guide</Link> for requirements and troubleshooting.
             </p>
             <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
               <Field label="Description" htmlFor="tok-desc" className="min-w-[200px] flex-1">
@@ -270,7 +271,7 @@ function AgentTab({ resource }: { resource: Resource }) {
                 </p>
                 <span className="text-xs text-muted-foreground">Token (expires {formatDateTime(created.expires_at)})</span>
                 <CodeBlock code={created.token} />
-                <span className="text-xs text-muted-foreground">Run on the server (after installing the emonitor-agent package):</span>
+                <span className="text-xs text-muted-foreground">Run on the server (as a user with sudo) — it downloads, enrolls and starts the agent:</span>
                 <CodeBlock code={created.install_command} />
               </div>
             )}

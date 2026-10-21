@@ -206,11 +206,11 @@ function ApiKeysTab() {
 function InstallInstructions({ command }: { command: string }) {
   return (
     <div className="flex flex-col gap-2 text-sm">
-      <p className="text-xs text-muted-foreground">1. Install the eMonitor agent package on the server (Linux: deb/rpm or the static binary; Windows: MSI), then run:</p>
+      <p className="text-xs text-muted-foreground">Run this on each Linux server (as a user with sudo). It downloads the agent from this portal, enrolls the server and starts the service:</p>
       <CodeBlock code={command} />
       <p className="text-xs text-muted-foreground">
-        2. The agent stores its credentials locally and starts reporting. On Linux enable the service with
-        <code className="mx-1 font-mono">sudo systemctl enable --now emonitor-agent</code>. Enrollment tokens expire and can be used a limited number of times.
+        Requirements, configuration, upgrades and troubleshooting: see the <Link className="underline" to="/agents/install">agent installation guide</Link>.
+        Enrollment tokens expire and can be used a limited number of times.
       </p>
     </div>
   );

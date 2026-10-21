@@ -668,6 +668,16 @@ export interface EnrollmentTokenCreated extends EnrollmentToken {
   install_command: string;
 }
 
+export interface AgentInfo {
+  server_url: string;
+  install_script_url: string;
+  package_url: string;
+  agent_version: string;
+  package_sha256: string;
+  install_command_template: string;
+  upgrade_command: string;
+}
+
 export interface EnrollmentTokenIn {
   description?: string;
   server_id?: UUID | null;
