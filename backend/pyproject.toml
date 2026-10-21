@@ -1,0 +1,31 @@
+[project]
+name = "emonitor-backend"
+version = "1.0.0"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "S", "UP", "ASYNC"]
+# S110: best-effort cleanup paths are intentional; ASYNC109: probes take explicit per-operation timeouts;
+# UP046/UP047: keep TypeVar generics for readability; S105: "bearer" token_type is not a secret.
+ignore = ["S101", "B008", "S311", "S603", "S607", "E501", "B904", "S110", "ASYNC109", "UP046", "UP047", "S105"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106", "S104", "B007"]
+# ClickHouse SQL is assembled only from internal constant fragments; every user value is a bound
+# server-side parameter ({name:Type}). See tests/test_logs.py::test_clickhouse_log_query_is_parameterized.
+"app/telemetry/store.py" = ["S608", "B023"]
+# Database identifier is validated against ^[A-Za-z_][A-Za-z0-9_]*$ before use.
+"app/cli.py" = ["S608"]
+# Transport enforces https:// (http only with the explicit allow_insecure_http test flag).
+"../agent/monitor_agent/transport.py" = ["S310"]

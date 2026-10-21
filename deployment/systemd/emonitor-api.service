@@ -1,0 +1,35 @@
+[Unit]
+Description=eMonitor API (FastAPI/uvicorn)
+After=network-online.target postgresql.service redis-server.service clickhouse-server.service
+Wants=network-online.target
+PartOf=emonitor.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/emonitor/emonitor.env
+User=emonitor
+Group=emonitor
+WorkingDirectory=/opt/emonitor/backend
+Restart=always
+RestartSec=5
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+UMask=0027
+ExecStart=/opt/emonitor/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 4 --proxy-headers --forwarded-allow-ips=127.0.0.1 --no-server-header
+
+TimeoutStopSec=60
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=emonitor.target

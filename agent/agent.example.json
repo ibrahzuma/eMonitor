@@ -1,0 +1,16 @@
+{
+  "server_url": "https://monitor.example.com",
+  "credentials_file": "/etc/emonitor-agent/credentials.json",
+  "state_dir": "/var/lib/emonitor-agent",
+  "ca_bundle": null,
+  "interval_seconds": 30,
+  "follow_server_interval": true,
+  "services": ["ssh", "nginx", "postgresql"],
+  "log_files": [
+    {"path": "/var/log/nginx/error.log", "application": "nginx", "source": "nginx-error"},
+    {"path": "/var/log/auth.log", "application": "sshd", "source": "auth"},
+    {"path": "/var/log/myapp/app.json.log", "application": "myapp", "format": "json"}
+  ],
+  "spool_max_mb": 50,
+  "rotate_credentials_days": 30
+}

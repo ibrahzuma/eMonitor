@@ -1,0 +1,35 @@
+[Unit]
+Description=eMonitor telemetry ingest (Redis stream -> ClickHouse)
+After=network-online.target redis-server.service clickhouse-server.service
+Wants=network-online.target
+PartOf=emonitor.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/emonitor/emonitor.env
+User=emonitor
+Group=emonitor
+WorkingDirectory=/opt/emonitor/backend
+Restart=always
+RestartSec=5
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+UMask=0027
+ExecStart=/opt/emonitor/venv/bin/python -m app.workers.ingest
+
+TimeoutStopSec=60
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=emonitor.target

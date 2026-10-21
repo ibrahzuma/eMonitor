@@ -1,0 +1,20 @@
+<!-- /etc/clickhouse-server/users.d/emonitor-user.xml : application user restricted to the emonitor DB -->
+<clickhouse>
+    <users>
+        <emonitor>
+            <password_sha256_hex>__PASSWORD_SHA256__</password_sha256_hex>
+            <networks><ip>127.0.0.1</ip><ip>::1</ip></networks>
+            <profile>emonitor</profile>
+            <quota>default</quota>
+            <allow_databases><database>emonitor</database></allow_databases>
+            <access_management>0</access_management>
+        </emonitor>
+    </users>
+    <profiles>
+        <emonitor>
+            <max_execution_time>30</max_execution_time>
+            <max_memory_usage>4000000000</max_memory_usage>
+            <readonly>0</readonly>
+        </emonitor>
+    </profiles>
+</clickhouse>

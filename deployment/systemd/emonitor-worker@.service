@@ -1,0 +1,38 @@
+[Unit]
+Description=eMonitor Celery worker (%i queue)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+PartOf=emonitor.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/emonitor/emonitor.env
+User=emonitor
+Group=emonitor
+WorkingDirectory=/opt/emonitor/backend
+Restart=always
+RestartSec=5
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+UMask=0027
+# Tune per queue with: systemctl edit emonitor-worker@checks (override ExecStart --concurrency)
+ExecStart=/opt/emonitor/venv/bin/celery -A app.workers.celery_app worker --queues=%i --hostname=%i@%%H --loglevel=INFO --concurrency=8 --without-gossip --without-mingle
+# Probes need raw ping: grant only CAP_NET_RAW (ICMP) to check workers
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+TimeoutStopSec=60
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=emonitor.target

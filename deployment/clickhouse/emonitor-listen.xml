@@ -1,0 +1,10 @@
+<!-- /etc/clickhouse-server/config.d/emonitor-listen.xml : loopback only, backups to the eMonitor backup dir -->
+<clickhouse>
+    <listen_host>127.0.0.1</listen_host>
+    <listen_host>::1</listen_host>
+    <logger><level>warning</level></logger>
+    <max_concurrent_queries>200</max_concurrent_queries>
+    <backups>
+        <allowed_path>/var/backups/emonitor/</allowed_path>
+    </backups>
+</clickhouse>

@@ -1,0 +1,6 @@
+[Unit]
+Description=eMonitor platform (all services)
+Wants=emonitor-api.service emonitor-scheduler.service emonitor-beat.service emonitor-ingest.service emonitor-worker@checks.service emonitor-worker@notifications.service emonitor-worker@rules.service emonitor-worker@maintenance.service
+
+[Install]
+WantedBy=multi-user.target

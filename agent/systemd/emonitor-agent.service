@@ -1,0 +1,42 @@
+[Unit]
+Description=eMonitor monitoring agent
+Documentation=https://github.com/your-org/emonitor/blob/main/docs/AGENT.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=emonitor-agent
+Group=emonitor-agent
+# adm grants read access to /var/log/syslog, nginx logs etc. when log tailing is configured
+SupplementaryGroups=adm systemd-journal
+Environment=PYTHONPATH=/opt/emonitor-agent
+ExecStart=/usr/bin/python3 -m monitor_agent --config /etc/emonitor-agent/agent.json run
+Restart=always
+RestartSec=10
+# Lightweight: cap resource usage
+CPUQuota=10%
+MemoryMax=128M
+Nice=10
+# Hardening: read-only system view; only the state dir and credentials are writable
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/emonitor-agent /etc/emonitor-agent
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

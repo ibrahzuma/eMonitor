@@ -1,0 +1,8 @@
+# Service logs go to journald (bounded by journald.conf.d/emonitor.conf). This covers file logs.
+/var/log/emonitor-backup.log {
+    weekly
+    rotate 8
+    compress
+    missingok
+    notifempty
+}
