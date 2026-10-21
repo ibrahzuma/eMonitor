@@ -59,6 +59,7 @@ class CheckType(StrEnum):
     MYSQL = "mysql"
     REDIS = "redis"
     SNMP = "snmp"
+    DOMAIN = "domain"
 
 
 class CheckOutcomeStatus(StrEnum):

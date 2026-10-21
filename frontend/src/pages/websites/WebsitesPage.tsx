@@ -55,12 +55,14 @@ export function WebsitesPage() {
               <THead>
                 <TR>
                   <TH>Name</TH><TH>Status</TH><TH className="text-right">Uptime 24h</TH><TH className="text-right">Response</TH>
-                  <TH className="text-right">SSL</TH><TH>Last check</TH><TH className="text-right">Incidents</TH>
+                  <TH className="text-right">SSL</TH><TH className="text-right">Domain</TH><TH>Last check</TH><TH className="text-right">Incidents</TH>
                 </TR>
               </THead>
               <TBody>
                 {list.data.items.map((r) => {
-                  const c = r.checks?.[0];
+                  const c = r.checks?.find((x) => x.type === "http") ?? r.checks?.[0];
+                  const dom = r.checks?.find((x) => x.type === "domain")?.last_details?.domain;
+                  const domDays = dom && typeof dom === "object" && !Array.isArray(dom) && typeof dom.days_remaining === "number" ? dom.days_remaining : null;
                   return (
                     <TR key={r.id}>
                       <TD className="max-w-[360px]">
@@ -72,6 +74,7 @@ export function WebsitesPage() {
                       <TD className="text-right"><UptimeCell value={r.uptime_24h} /></TD>
                       <TD className="tabular text-right">{formatMs(c?.last_latency_ms)}</TD>
                       <TD className="text-right"><SslDays days={sslDaysOf(c?.last_details)} /></TD>
+                      <TD className="text-right"><SslDays days={domDays} /></TD>
                       <TD>
                         <RelativeTime value={c?.last_run_at} />
                         {c && c.last_outcome !== "up" && <p className="max-w-[220px] truncate text-[11px] text-muted-foreground" title={c.last_message}>{c.last_message}</p>}

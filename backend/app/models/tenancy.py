@@ -17,6 +17,7 @@ def default_org_settings() -> dict[str, Any]:
         "reopen_window_minutes": 60,
         "agent_timeout_seconds": 180,
         "ssl_alert_days": [30, 14, 7, 3, 0],
+        "domain_alert_days": [60, 30, 14, 7, 1],
         "log_retention_days": 14,
         "metric_retention_days": 90,
         "logs_per_day_quota": 5_000_000,

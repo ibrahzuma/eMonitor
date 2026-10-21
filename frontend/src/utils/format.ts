@@ -1,5 +1,23 @@
 /** Formatting helpers. API timestamps are UTC ISO strings; we render them in the user's time zone. */
 
+/** Best-effort registrable domain (mirrors the backend): www.qalaam.co.tz → qalaam.co.tz. */
+const SLD = new Set(["co", "com", "net", "org", "ac", "go", "gov", "edu", "or", "ne", "mil", "sch", "nic", "info", "biz",
+  "ltd", "plc", "me", "web", "gen", "firm", "nom", "int", "mobi", "tv", "sc", "us"]);
+export function registrableDomain(host: string): string {
+  const labels = host.toLowerCase().replace(/\.$/, "").split(".").filter(Boolean);
+  if (labels.length <= 2) return labels.join(".");
+  if (labels[labels.length - 1].length === 2 && SLD.has(labels[labels.length - 2])) return labels.slice(-3).join(".");
+  return labels.slice(-2).join(".");
+}
+
+export function hostOfUrl(url: string): string {
+  try {
+    return new URL(url.trim()).hostname;
+  } catch {
+    return "";
+  }
+}
+
 export function browserTimeZone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";

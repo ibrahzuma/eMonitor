@@ -16,6 +16,7 @@ log = logging.getLogger("emonitor.probes")
 
 def _registry() -> dict[str, Callable[[Any, ProbeContext], Awaitable[ProbeResult]]]:
     from app.monitoring.probes.db import probe_mysql, probe_postgres, probe_redis
+    from app.monitoring.probes.domain import probe_domain
     from app.monitoring.probes.http import probe_http
     from app.monitoring.probes.net import probe_dns, probe_icmp, probe_smtp, probe_ssh, probe_tcp, probe_tls
     from app.monitoring.probes.snmp import probe_snmp
@@ -32,6 +33,7 @@ def _registry() -> dict[str, Callable[[Any, ProbeContext], Awaitable[ProbeResult
         CheckType.MYSQL: probe_mysql,
         CheckType.REDIS: probe_redis,
         CheckType.SNMP: probe_snmp,
+        CheckType.DOMAIN: probe_domain,
     }
 
 

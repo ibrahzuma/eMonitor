@@ -13,6 +13,7 @@ import { validateStatusList, validateUrl } from "@/features/checks/checkSpecs";
 import { BaseResourceFields, type BaseFieldsState, baseFieldsFrom, baseFieldsPayload } from "@/features/resources/panels";
 import { fieldErrorsOf, useApiMutation } from "@/hooks/useApi";
 import { type HttpMethod, type JsonAssertion, type JsonObject, type JsonValue, SEVERITIES, type Severity, type WebsiteCreate } from "@/types/api";
+import { hostOfUrl, registrableDomain } from "@/utils/format";
 
 // ---------------------------------------------------------------- add website
 
@@ -43,6 +44,11 @@ interface WebsiteForm {
   basic_password: string;
   bearer_token: string;
   secret_headers: [string, string][];
+  monitor_dns: boolean;
+  dns_record_type: "A" | "AAAA" | "CNAME";
+  monitor_domain: boolean;
+  domain: string;
+  domain_alert_days: string;
 }
 
 function initialForm(): WebsiteForm {
@@ -71,6 +77,11 @@ function initialForm(): WebsiteForm {
     basic_password: "",
     bearer_token: "",
     secret_headers: [],
+    monitor_dns: true,
+    dns_record_type: "A",
+    monitor_domain: true,
+    domain: "",
+    domain_alert_days: "",
   };
 }
 
@@ -127,6 +138,16 @@ export function buildWebsitePayload(f: WebsiteForm): { payload: WebsiteCreate | 
     if (nums.some((n) => !Number.isInteger(n) || n < 0 || n > 365)) errors.ssl_alert_days = "Use whole numbers of days, e.g. 30, 14, 7";
     else sslDays = nums;
   }
+  let domainDays: number[] | null = null;
+  if (f.monitor_domain && f.domain_alert_days.trim()) {
+    const nums = f.domain_alert_days.split(",").map((x) => x.trim()).filter(Boolean).map(Number);
+    if (nums.some((n) => !Number.isInteger(n) || n < 0 || n > 365)) errors.domain_alert_days = "Use whole numbers of days, e.g. 60, 30, 7";
+    else domainDays = nums;
+  }
+  const domain = f.domain.trim().toLowerCase();
+  if (f.monitor_domain && domain && !/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/.test(domain)) {
+    errors.domain = "Enter a domain such as example.co.tz";
+  }
   let degraded: number | null = null;
   if (f.degraded_threshold_ms.trim()) {
     const n = Number(f.degraded_threshold_ms);
@@ -168,6 +189,11 @@ export function buildWebsitePayload(f: WebsiteForm): { payload: WebsiteCreate | 
     follow_redirects: f.follow_redirects,
     failure_threshold: failure,
     severity: f.severity,
+    monitor_dns: f.monitor_dns,
+    dns_record_type: f.dns_record_type,
+    monitor_domain: f.monitor_domain,
+    domain: f.monitor_domain && domain ? domain : null,
+    domain_alert_days: domainDays,
   };
   if (Object.keys(secrets).length) payload.secrets = secrets;
   return { payload, errors };
@@ -303,6 +329,34 @@ export function AddWebsiteDialog({ open, onOpenChange }: { open: boolean; onOpen
               <CheckboxField id="web-ssl" label="Track certificate expiry" checked={f.ssl_check} onCheckedChange={(v) => set("ssl_check", v)} />
               <Field label="SSL alert days" htmlFor="web-ssl-days" error={errors.ssl_alert_days} hint="e.g. 30, 14, 7 — empty = organization default">
                 <Input id="web-ssl-days" value={f.ssl_alert_days} onChange={(e) => set("ssl_alert_days", e.target.value)} />
+              </Field>
+            </fieldset>
+
+            <fieldset className="grid grid-cols-1 gap-3 rounded-md border p-3 sm:grid-cols-2">
+              <legend className="px-1 text-xs font-semibold text-muted-foreground">DNS &amp; domain</legend>
+              <p className="text-xs text-muted-foreground sm:col-span-2">
+                Extra checks created with the website: DNS resolution every 5 minutes and domain registration expiry twice a day
+                (via the registry's RDAP/WHOIS). SSL certificate expiry is tracked by the HTTP check above.
+              </p>
+              <CheckboxField id="web-dns" label="Monitor DNS resolution" checked={f.monitor_dns} onCheckedChange={(v) => set("monitor_dns", v)} />
+              <Field label="DNS record type" htmlFor="web-dns-type">
+                <NativeSelect id="web-dns-type" value={f.dns_record_type} disabled={!f.monitor_dns}
+                  onChange={(e) => set("dns_record_type", e.target.value as "A" | "AAAA" | "CNAME")}>
+                  <option value="A">A (IPv4)</option>
+                  <option value="AAAA">AAAA (IPv6)</option>
+                  <option value="CNAME">CNAME</option>
+                </NativeSelect>
+              </Field>
+              <CheckboxField id="web-domain" label="Monitor domain registration expiry" checked={f.monitor_domain} onCheckedChange={(v) => set("monitor_domain", v)} />
+              <Field label="Domain" htmlFor="web-domain-name" error={errors.domain}
+                hint={hostOfUrl(f.url) ? `Detected: ${registrableDomain(hostOfUrl(f.url))} — leave empty to use it` : "Detected from the URL"}>
+                <Input id="web-domain-name" value={f.domain} disabled={!f.monitor_domain}
+                  placeholder={hostOfUrl(f.url) ? registrableDomain(hostOfUrl(f.url)) : "example.co.tz"}
+                  onChange={(e) => set("domain", e.target.value)} />
+              </Field>
+              <Field label="Domain alert days" htmlFor="web-domain-days" error={errors.domain_alert_days} className="sm:col-span-2"
+                hint="e.g. 60, 30, 14, 7, 1 — empty = organization default">
+                <Input id="web-domain-days" value={f.domain_alert_days} disabled={!f.monitor_domain} onChange={(e) => set("domain_alert_days", e.target.value)} />
               </Field>
             </fieldset>
 

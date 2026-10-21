@@ -74,8 +74,30 @@ describe("AddWebsiteDialog", () => {
       follow_redirects: true,
       failure_threshold: 2,
       severity: "critical",
+      monitor_dns: true,
+      dns_record_type: "A",
+      monitor_domain: true,
+      domain: null,
+      domain_alert_days: null,
       secrets: { bearer_token: "s3cret" },
     });
+  });
+
+  it("shows the detected domain and sends DNS/domain options", async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(http.post(u("/websites"), async ({ request }) => {
+      body = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json(makeResource({ id: "w3", kind: "website" }), { status: 201 });
+    }));
+    const { user } = await renderDialog();
+    await user.type(screen.getByLabelText(/^Name/), "Qalaam");
+    await user.type(screen.getByLabelText(/^URL/), "https://www.qalaam.co.tz/");
+    expect(screen.getByText(/Detected: qalaam\.co\.tz/)).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Monitor DNS resolution" }));
+    await user.type(screen.getByLabelText(/Domain alert days/), "30, 7");
+    await user.click(screen.getByRole("button", { name: "Add website" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ monitor_dns: false, monitor_domain: true, domain: null, domain_alert_days: [30, 7] });
   });
 
   it("omits secrets entirely when no credential is entered", async () => {

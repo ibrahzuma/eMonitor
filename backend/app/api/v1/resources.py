@@ -465,11 +465,41 @@ async def create_website(body: WebsiteCreate, ctx: Ctx = Depends(require(Permiss
     check = CheckIn(name="HTTP", type=CheckType.HTTP, config=config, secrets=body.secrets,
                     interval_seconds=body.interval_seconds, timeout_seconds=body.timeout_seconds,
                     failure_threshold=body.failure_threshold, severity=body.severity)
-    r = await svc.create_resource(db, ctx, kind=body.kind, base=base, checks=[check])
+    checks = [check, *website_extra_checks(body)]
+    r = await svc.create_resource(db, ctx, kind=body.kind, base=base, checks=checks)
     audit.record(db, action="website.created", ctx=ctx, target_type=body.kind, target_id=r.id,
                  details={"name": r.name, "url": body.url})
     await db.commit()
     return await svc.resource_out(db, r)
+
+
+def website_extra_checks(body: WebsiteCreate) -> list[CheckIn]:
+    """DNS resolution and domain-registration checks that accompany a website's HTTP check."""
+    from urllib.parse import urlsplit
+
+    from app.monitoring.probes.domain import registrable_domain
+
+    host = (urlsplit(body.url).hostname or "").lower()
+    out: list[CheckIn] = []
+    if not host or netguard_is_ip(host):
+        return out
+    if body.monitor_dns:
+        out.append(CheckIn(name="DNS", type=CheckType.DNS,
+                           config={"name": host, "record_type": body.dns_record_type},
+                           interval_seconds=300, timeout_seconds=10, failure_threshold=2, severity="high"))
+    if body.monitor_domain:
+        cfg: dict[str, Any] = {"domain": body.domain or registrable_domain(host)}
+        if body.domain_alert_days:
+            cfg["alert_days"] = body.domain_alert_days
+        out.append(CheckIn(name="Domain expiry", type=CheckType.DOMAIN, config=cfg,
+                           interval_seconds=43200, timeout_seconds=30, failure_threshold=1, severity="critical"))
+    return out
+
+
+def netguard_is_ip(host: str) -> bool:
+    from app.monitoring.netguard import parse_ip
+
+    return parse_ip(host) is not None
 
 
 # ---------------------------------------------------------------- network devices

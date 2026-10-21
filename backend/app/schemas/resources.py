@@ -240,6 +240,12 @@ class WebsiteCreate(ResourceBase):
     failure_threshold: int = Field(default=2, ge=1, le=100)
     severity: Severity = Severity.CRITICAL
     secrets: dict[str, Any] | None = None
+    # Extra coverage created alongside the HTTP check
+    monitor_dns: bool = True
+    dns_record_type: Literal["A", "AAAA", "CNAME"] = "A"
+    monitor_domain: bool = True
+    domain: str | None = Field(default=None, max_length=253)  # default: registrable domain of the URL
+    domain_alert_days: list[int] | None = None
 
 
 class NetworkDeviceCreate(ResourceBase):

@@ -56,6 +56,13 @@ passing HTTP check therefore shows reduced availability). The implementation is
 * SSL: one incident per certificate; it is re-notified at each crossed threshold (default 30/14/7/3/0 days)
   with escalating severity and resolves when the certificate is renewed.
 
+* Domain registration: websites get a **Domain expiry** check (twice a day) that reads the expiry date from the
+  registry's RDAP service (IANA bootstrap), falling back to WHOIS. One incident per domain, re-notified at each
+  crossed threshold (default 60/30/14/7/1 days; warning → high → critical); an expired or unregistered domain
+  makes the check DOWN. If the registry cannot be queried the check is UNKNOWN (never counted as downtime).
+* DNS: websites also get a **DNS** check (every 5 minutes) that the hostname still resolves (A/AAAA/CNAME);
+  expected answers can be pinned in the check settings to alert on unexpected changes.
+
 ## Incident metrics (Reports → Incidents)
 * **MTTD** — mean of `incident.first_detected_at − condition_started_at`, where `condition_started_at` is the
   first failing slot. Only check-based incidents carry this value; it reflects `failure_threshold × interval`.

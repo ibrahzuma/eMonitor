@@ -23,7 +23,7 @@ from app.services.availability import compute_slo
 router = APIRouter(tags=["reports"])
 
 REPORTS = ("availability", "website-uptime", "service-availability", "incidents", "alerts", "utilization", "capacity",
-           "ssl", "log-errors", "sla")
+           "ssl", "domains", "log-errors", "sla")
 
 
 def _render(rep: rpt.Report, fmt: str, org_name: str, name: str):
@@ -66,6 +66,8 @@ async def get_report(name: str, ctx: Ctx = Depends(require(Permission.VIEW)), db
         rep = await rpt.capacity_report(db, org, s, e, f)
     elif name == "ssl":
         rep = await rpt.ssl_report(db, org)
+    elif name == "domains":
+        rep = await rpt.domain_report(db, org)
     elif name == "log-errors":
         rep = await rpt.log_error_report(db, org, s, e)
     else:

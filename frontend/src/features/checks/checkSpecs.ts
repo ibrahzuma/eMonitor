@@ -95,6 +95,10 @@ export const CONFIG_SPECS: Record<CheckType, FieldSpec[]> = {
     { key: "username", label: "Username (ACL)", kind: "text" },
     latency,
   ],
+  domain: [
+    { key: "domain", label: "Domain", kind: "text", required: true, placeholder: "example.co.tz", hint: "Registered domain (not a subdomain)" },
+    { key: "alert_days", label: "Alert days before expiry", kind: "intlist", hint: "e.g. 60, 30, 14, 7, 1 (empty = organization default)" },
+  ],
   snmp: [
     host,
     port("161"),
@@ -150,6 +154,7 @@ export const CHECK_TYPE_LABELS: Record<CheckType, string> = {
   mysql: "MySQL",
   redis: "Redis",
   snmp: "SNMP",
+  domain: "Domain expiry",
 };
 
 export interface CheckDraft {
@@ -182,9 +187,9 @@ export function defaultCheckDraft(type: CheckType, name?: string): CheckDraft {
     type,
     config,
     secrets,
-    interval_seconds: "60",
-    timeout_seconds: "10",
-    failure_threshold: "2",
+    interval_seconds: type === "domain" ? "43200" : "60",
+    timeout_seconds: type === "domain" ? "30" : "10",
+    failure_threshold: type === "domain" ? "1" : "2",
     recovery_threshold: "1",
     severity: "critical",
     enabled: true,

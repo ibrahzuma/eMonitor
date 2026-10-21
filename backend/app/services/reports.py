@@ -272,6 +272,26 @@ async def ssl_report(db: AsyncSession, org_id: uuid.UUID) -> Report:
                                       "expired": sum(1 for r in rows if (r["days_remaining"] or 0) < 0)})
 
 
+async def domain_report(db: AsyncSession, org_id: uuid.UUID) -> Report:
+    rows_q = await db.execute(select(Check, Resource.name).join(Resource, Resource.id == Check.resource_id).where(
+        Check.organization_id == org_id, Check.type == "domain"))
+    rows = []
+    for c, name in rows_q.all():
+        d = (c.last_details or {}).get("domain") or {}
+        rows.append({"resource": name, "domain": d.get("name") or c.config.get("domain"),
+                     "registrar": d.get("registrar"), "expires_at": d.get("expires_at"),
+                     "days_remaining": d.get("days_remaining"), "source": d.get("source"),
+                     "status": c.last_outcome, "message": c.last_message})
+    rows.sort(key=lambda r: r["days_remaining"] if r["days_remaining"] is not None else 99999)
+    return Report(title="Domain registration expiry",
+                  columns=_cols(("resource", "Resource"), ("domain", "Domain"), ("registrar", "Registrar"),
+                                ("expires_at", "Expires"), ("days_remaining", "Days left"), ("source", "Source"),
+                                ("status", "Last check")),
+                  rows=rows, summary={"expiring_60d": sum(1 for r in rows if (r["days_remaining"] or 9999) <= 60),
+                                      "unknown": sum(1 for r in rows if r["days_remaining"] is None)},
+                  notes=["Expiry dates come from the registry's RDAP service, or WHOIS when RDAP is unavailable."])
+
+
 async def log_error_report(db: AsyncSession, org_id: uuid.UUID, start: datetime, end: datetime) -> Report:
     store = get_store()
     bucket = 86400 if (end - start) > timedelta(days=2) else 3600

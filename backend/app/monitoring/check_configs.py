@@ -239,6 +239,28 @@ class SnmpConfig(HostPort):
         return self
 
 
+class DomainConfig(_Cfg):
+    domain: str = Field(min_length=3, max_length=253, description="Registrable domain, e.g. example.co.tz")
+    alert_days: list[int] | None = None  # override org defaults (default 60/30/14/7/1)
+
+    @field_validator("domain")
+    @classmethod
+    def _domain(cls, v: str) -> str:
+        v = v.strip().lower().rstrip(".")
+        if v.startswith(("http://", "https://")):
+            v = (urlsplit(v).hostname or "")
+        if not re.fullmatch(r"(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}", v):
+            raise ValueError("enter a domain name such as example.com or example.co.tz")
+        return v
+
+    @field_validator("alert_days")
+    @classmethod
+    def _days(cls, v: list[int] | None) -> list[int] | None:
+        if v is not None and (len(v) > 10 or any(d < 0 or d > 365 for d in v)):
+            raise ValueError("alert_days: up to 10 values between 0 and 365")
+        return v
+
+
 class SnmpSecrets(_Cfg):
     community: str | None = None
     v3_auth_key: str | None = None
@@ -257,6 +279,7 @@ CONFIG_MODELS: dict[str, type[_Cfg]] = {
     CheckType.MYSQL: MysqlConfig,
     CheckType.REDIS: RedisConfig,
     CheckType.SNMP: SnmpConfig,
+    CheckType.DOMAIN: DomainConfig,
 }
 
 SECRET_MODELS: dict[str, type[_Cfg]] = {
@@ -289,4 +312,6 @@ def target_host(check_type: str, cfg: _Cfg) -> str:
         return cfg.host
     if isinstance(cfg, DnsConfig):
         return cfg.nameserver or ""
+    if isinstance(cfg, DomainConfig):
+        return ""  # queried at IANA-listed registry RDAP/WHOIS servers, not at a user-chosen host
     return getattr(cfg, "host", "")

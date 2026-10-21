@@ -176,6 +176,9 @@ async def process_check_result(db: AsyncSession, check_id: uuid.UUID, slot: date
     cert = (result.details or {}).get("certificate")
     if cert and "days_remaining" in cert and check.type in (CheckType.HTTP, CheckType.TLS, CheckType.SMTP):
         await evaluate_ssl(db, org, check, resource, cert, now)
+    dom = (result.details or {}).get("domain")
+    if dom and "days_remaining" in dom and check.type == CheckType.DOMAIN:
+        await evaluate_domain_expiry(db, org, check, resource, dom, now)
 
     if new_state != prev_state:
         events.emit(db, org.id, "check_state", {
@@ -208,6 +211,39 @@ async def evaluate_ssl(db: AsyncSession, org: Organization, check: Check, resour
         trigger_condition=f"days_remaining={days} crossed threshold {th}",
         evidence={"certificate": {k: cert.get(k) for k in ("subject", "issuer", "not_after", "days_remaining", "serial")}},
         renotify_marker=f"ssl:{'expired' if expired else th}", now=now,
+    )
+
+
+DEFAULT_DOMAIN_DAYS = [60, 30, 14, 7, 1]
+
+
+def domain_severity(threshold: int) -> Severity:
+    if threshold <= 7:
+        return Severity.CRITICAL
+    if threshold <= 14:
+        return Severity.HIGH
+    return Severity.WARNING
+
+
+async def evaluate_domain_expiry(db: AsyncSession, org: Organization, check: Check, resource: Resource,
+                                 dom: dict[str, Any], now: datetime) -> None:
+    days = int(dom["days_remaining"])
+    thresholds = check.config.get("alert_days") or (org.settings or {}).get("domain_alert_days") or DEFAULT_DOMAIN_DAYS
+    dedup = f"domain:{check.id}"
+    th = ssl_threshold(days, [int(t) for t in thresholds])
+    if th is None or dom.get("expired"):
+        if th is None:
+            await engine.clear_condition(db, org_id=org.id, dedup_key=dedup,
+                                         message=f"Domain renewed: {days} days remaining", now=now)
+        return  # an expired domain is reported by the check itself (DOWN → check incident)
+    await engine.raise_condition(
+        db, org=org, dedup_key=dedup, title=f"{resource.name}: domain {dom.get('name')} expires in {days} day(s)",
+        severity=domain_severity(th), source=IncidentSource.CHECK, source_id=str(check.id), resource=resource,
+        description=f"Registration of {dom.get('name')} (registrar {dom.get('registrar') or 'unknown'}) expires "
+                    f"{dom.get('expires_at')}. Renew it with your registrar.",
+        trigger_condition=f"days_remaining={days} crossed threshold {th}",
+        evidence={"domain": {k: dom.get(k) for k in ("name", "expires_at", "days_remaining", "registrar", "source")}},
+        renotify_marker=f"domain:{th}", now=now,
     )
 
 

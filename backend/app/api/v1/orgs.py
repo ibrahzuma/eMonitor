@@ -103,9 +103,9 @@ _SETTING_BOUNDS = {
 def _validate_settings(current: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
     merged = {**default_org_settings(), **(current or {})}
     for k, v in patch.items():
-        if k == "ssl_alert_days":
+        if k in ("ssl_alert_days", "domain_alert_days"):
             if not isinstance(v, list) or not all(isinstance(x, int) and 0 <= x <= 365 for x in v) or len(v) > 10:
-                raise ValidationFailed("ssl_alert_days must be a list of up to 10 integers between 0 and 365")
+                raise ValidationFailed(f"{k} must be a list of up to 10 integers between 0 and 365")
             merged[k] = sorted(set(v), reverse=True)
             continue
         if k not in _SETTING_BOUNDS:

@@ -23,7 +23,7 @@ export type Environment = (typeof ENVIRONMENTS)[number];
 export const HEALTH_STATUSES = ["healthy", "warning", "critical", "unreachable", "unknown", "maintenance"] as const;
 export type HealthStatus = (typeof HEALTH_STATUSES)[number];
 
-export const CHECK_TYPES = ["http", "tcp", "icmp", "dns", "tls", "smtp", "ssh", "postgres", "mysql", "redis", "snmp"] as const;
+export const CHECK_TYPES = ["http", "tcp", "icmp", "dns", "tls", "smtp", "ssh", "postgres", "mysql", "redis", "snmp", "domain"] as const;
 export type CheckType = (typeof CHECK_TYPES)[number];
 
 export const CHECK_OUTCOMES = ["up", "degraded", "down", "unknown", "skipped"] as const;
@@ -451,6 +451,11 @@ export interface WebsiteCreate extends ResourceBaseIn {
   failure_threshold?: number;
   severity?: Severity;
   secrets?: JsonObject | null;
+  monitor_dns?: boolean;
+  dns_record_type?: "A" | "AAAA" | "CNAME";
+  monitor_domain?: boolean;
+  domain?: string | null;
+  domain_alert_days?: number[] | null;
 }
 
 export type DeviceType = "router" | "switch" | "firewall" | "access_point" | "load_balancer" | "other";
