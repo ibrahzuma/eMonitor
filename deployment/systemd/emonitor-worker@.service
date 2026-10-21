@@ -27,7 +27,7 @@ RestrictRealtime=true
 SystemCallArchitectures=native
 UMask=0027
 # Tune per queue with: systemctl edit emonitor-worker@checks (override ExecStart --concurrency)
-ExecStart=/opt/emonitor/venv/bin/celery -A app.workers.celery_app worker --queues=%i --hostname=%i@%%H --loglevel=INFO --concurrency=8 --without-gossip --without-mingle
+ExecStart=/opt/emonitor/venv/bin/celery -A app.workers.celery_app worker --queues=%i --hostname=%i@%%h --loglevel=INFO --concurrency=8 --without-gossip --without-mingle
 # Probes need raw ping: grant only CAP_NET_RAW (ICMP) to check workers
 AmbientCapabilities=CAP_NET_RAW
 CapabilityBoundingSet=CAP_NET_RAW

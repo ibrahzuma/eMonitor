@@ -259,6 +259,9 @@ async def probe_http(cfg: HttpConfig, ctx: ProbeContext) -> ProbeResult:
         "body_truncated": truncated,
         "headers": {k: v for k, v in list(resp_headers.items())[:40]},
     }
+    if not cert and cfg.ssl_check and urlsplit(url).scheme == "https":
+        # Some connections release the TLS transport before we can read it; fetch the certificate directly.
+        cert = await _fallback_certificate(url, ctx)
     if cert:
         details["certificate"] = cert
     result = ProbeResult(

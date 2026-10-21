@@ -84,7 +84,8 @@ PG_OWNER_PW=$(sed -E 's|.*://emonitor_owner:([^@]+)@.*|\1|' <<<"$EMONITOR_MIGRAT
 REDIS_PW=$(sed -E 's|redis://:([^@]+)@.*|\1|' <<<"$EMONITOR_REDIS_URL")
 
 log "Dedicated Redis instance on 127.0.0.1:6380 (system Redis untouched)"
-cat > "$ETC_DIR/redis.conf" <<EOF
+install -d -o root -g redis -m 0750 /etc/emonitor-redis
+cat > /etc/emonitor-redis/redis.conf <<EOF
 bind 127.0.0.1
 protected-mode yes
 port 6380
@@ -101,7 +102,7 @@ rename-command FLUSHDB ""
 rename-command CONFIG ""
 rename-command DEBUG ""
 EOF
-chown root:redis "$ETC_DIR/redis.conf"; chmod 0640 "$ETC_DIR/redis.conf"
+chown root:redis /etc/emonitor-redis/redis.conf; chmod 0640 /etc/emonitor-redis/redis.conf
 cat > /etc/systemd/system/emonitor-redis.service <<'EOF'
 [Unit]
 Description=Redis instance for eMonitor (127.0.0.1:6380)
@@ -111,7 +112,7 @@ After=network.target
 Type=notify
 User=redis
 Group=redis
-ExecStart=/usr/bin/redis-server /etc/emonitor/redis.conf
+ExecStart=/usr/bin/redis-server /etc/emonitor-redis/redis.conf
 Restart=always
 NoNewPrivileges=true
 ProtectSystem=strict
