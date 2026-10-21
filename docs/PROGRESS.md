@@ -47,6 +47,15 @@ environment.
 - [x] Overview, server/website/device/service detail pages, historical charts (15m–30d), compare servers, incident screens, WebSocket live updates with polling fallback, dark/light themes, responsive layout
 - [x] Reports (availability, website uptime, service availability, incidents with MTTD/MTTA/MTTR, alert volume, utilization, capacity, SSL, log error rates, SLA) as JSON/CSV/PDF; SLOs with error budgets and burn-rate alerts
 
+### First production deployment — 2026-10-21
+`deployment/scripts/install-shared.sh` was run on an Ubuntu 24.04 host (4 vCPU, 8 GB) that already serves
+five other applications, at https://monitor.qalaam.co.tz. Verified on that host: installer end to end (after the
+fixes in commit "Fixes from first production deployment"), Let's Encrypt certificate, real ClickHouse,
+dedicated Redis, Celery workers + beat, scheduler, ingest consumer, `/health/ready` = ok, a live HTTPS website
+check stored in ClickHouse with correct uptime, and the backup script (PostgreSQL dump + native ClickHouse
+backup). Co-hosted services were confirmed not restarted and their sites returned identical responses.
+Still unverified: the dedicated-server `install.sh`, `upgrade.sh`, restore.
+
 ### 6. Hardening & deployment — partially verified
 - [x] Native Ubuntu installer, systemd units (hardened), nginx (TLS, CSP, WebSocket), Redis/ClickHouse configs, backup/restore/upgrade scripts, log rotation, firewall guidance
 - [x] Security checks (lint/bandit rules, dependency audits), failure handling fixed from load testing
