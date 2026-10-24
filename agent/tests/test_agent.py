@@ -94,6 +94,55 @@ def test_linux_collector_on_fake_proc(tmp_path):
     assert c.system_info()["kernel"] == "6.8.0"
 
 
+def test_init_system_detection(tmp_path):
+    sd = tmp_path / "run_systemd"
+    sd.mkdir()
+    assert col.detect_init_system(which=lambda _: None, systemd_run=str(sd)) == "systemd"
+    assert col.detect_init_system(which=lambda n: "/sbin/rc-service" if n == "rc-service" else None,
+                                  systemd_run=str(tmp_path / "nope")) == "openrc"
+    initd = tmp_path / "initd"
+    initd.mkdir()
+    (initd / "nginx").write_text("#!/bin/sh\n")
+    assert col.detect_init_system(which=lambda _: None, systemd_run=str(tmp_path / "nope"),
+                                  initd=str(initd)) == "sysvinit"
+    assert col.detect_init_system(which=lambda _: None, systemd_run=str(tmp_path / "nope"),
+                                  initd=str(tmp_path / "missing")) == "unknown"
+
+
+def test_service_status_parsers():
+    assert col.service_up_systemd(0, "active\n", "") is True
+    assert col.service_up_systemd(3, "inactive\n", "") is False
+    assert col.service_up_openrc(0, " * status: started\n", "") is True
+    assert col.service_up_openrc(3, " * status: stopped\n", "") is False
+    assert col.service_up_openrc(0, "", "") is True  # exit 0 with no recognisable text
+    assert col.service_up_sysvinit(0, "nginx is running\n", "") is True
+    assert col.service_up_sysvinit(3, "nginx is not running\n", "") is False
+    assert col.service_up_sysvinit(0, "", "") is True
+
+
+def test_service_states_uses_detected_init(monkeypatch):
+    c = col.LinuxCollector(services=["nginx", "ssh"])
+    c._init = "openrc"  # pin the init system instead of probing the test host
+    calls = []
+
+    def fake_run(argv, **kw):
+        calls.append(argv)
+        started = argv[1] == "nginx"
+        return col.subprocess.CompletedProcess(argv, 0 if started else 3,
+                                               "status: started" if started else "status: stopped", "")
+
+    monkeypatch.setattr(col.subprocess, "run", fake_run)
+    states = dict(((n, i), v) for n, i, v in c.service_states())
+    assert states[("service_up", "nginx")] == 1.0 and states[("service_up", "ssh")] == 0.0
+    assert calls[0][0] == "rc-service"  # OpenRC path, not systemctl
+
+
+def test_service_states_unknown_init_emits_nothing():
+    c = col.LinuxCollector(services=["nginx"])
+    c._init = "unknown"
+    assert c.service_states() == []
+
+
 def test_spool_is_bounded(tmp_path):
     s = Spool(tmp_path / "spool", max_files=3)
     for i in range(5):

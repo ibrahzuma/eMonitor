@@ -1,8 +1,9 @@
 """Operating-system metric collection.
 
 Only fixed, allowlisted read operations are performed: reading /proc and /sys files, statvfs on
-mounted filesystems, and `systemctl is-active <unit>` for units listed in the local config. The
-agent never executes commands received from the server.
+mounted filesystems, and a read-only service-status query (`systemctl is-active`, OpenRC
+`rc-service status`, or SysVinit `service status`, chosen by the host's init system) for units
+listed in the local config. The agent never executes commands received from the server.
 
 Parsers are pure functions over file contents so they can be unit-tested on any platform.
 `Collector` is the platform interface; `LinuxCollector` implements it (Windows can be added later).
@@ -10,12 +11,17 @@ Parsers are pure functions over file contents so they can be unit-tested on any 
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol
+
+log = logging.getLogger("emonitor-agent.collectors")
 
 Metric = tuple[str, str, float]  # (name, instance, value)
 
@@ -154,6 +160,62 @@ def count_tcp(text: str) -> int:
     return max(0, len(text.splitlines()) - 1)
 
 
+# ------------------------------------------------------------------ service status (init systems)
+#
+# Different Linux distributions use different init/service managers, so the agent probes service
+# state through whichever one is in charge of the host. The command built for each unit is fixed
+# and read-only; `status`/`is-active` never start, stop, or change a service.
+
+
+def detect_init_system(which: Callable[[str], str | None] = shutil.which,
+                       systemd_run: str = "/run/systemd/system", initd: str = "/etc/init.d") -> str:
+    """Return the host's service manager: 'systemd', 'openrc', 'sysvinit', or 'unknown'."""
+    if os.path.isdir(systemd_run):  # the canonical "systemd is PID 1" marker
+        return "systemd"
+    if which("rc-service"):  # OpenRC (Alpine, Gentoo)
+        return "openrc"
+    if os.path.isdir(initd) and os.listdir(initd):  # legacy SysVinit scripts
+        return "sysvinit"
+    return "unknown"
+
+
+def service_up_systemd(rc: int, out: str, err: str) -> bool:
+    return out.strip() == "active"
+
+
+def service_up_openrc(rc: int, out: str, err: str) -> bool:
+    """OpenRC `rc-service <unit> status`: exit 0 when started; text 'status: started|stopped|crashed'."""
+    low = out.lower()
+    if re.search(r"status:\s*started", low):
+        return True
+    if "stopped" in low or "crashed" in low or "inactive" in low:
+        return False
+    return rc == 0
+
+
+def service_up_sysvinit(rc: int, out: str, err: str) -> bool:
+    """LSB `service <unit> status`: exit 0 when running; wording varies across init scripts."""
+    low = out.lower()
+    if "not running" in low or "stopped" in low or "dead" in low or "inactive" in low:
+        return False
+    if "is running" in low or re.search(r"\brunning\b", low):
+        return True
+    return rc == 0
+
+
+# unit → argv (read-only status query), and (rc, stdout, stderr) → is-up, per init system.
+INIT_COMMANDS: dict[str, Callable[[str], list[str]]] = {
+    "systemd": lambda unit: ["systemctl", "is-active", "--", unit],
+    "openrc": lambda unit: ["rc-service", unit, "status"],
+    "sysvinit": lambda unit: ["service", unit, "status"],
+}
+INIT_PARSERS: dict[str, Callable[[int, str, str], bool]] = {
+    "systemd": service_up_systemd,
+    "openrc": service_up_openrc,
+    "sysvinit": service_up_sysvinit,
+}
+
+
 # ------------------------------------------------------------------ collectors
 
 class Collector(Protocol):
@@ -170,9 +232,18 @@ class LinuxCollector:
     _prev_disk: dict = field(default_factory=dict)
     _prev_net: dict = field(default_factory=dict)
     _prev_t: float | None = None
+    _init: str | None = None
+    _warned_init: bool = False
 
     def __post_init__(self) -> None:
         self.services = [s for s in self.services if SERVICE_NAME.match(s)]
+
+    def init_system(self) -> str:
+        """Detect the service manager once and cache it for the process lifetime."""
+        if self._init is None:
+            self._init = detect_init_system()
+            log.info("service monitoring via init system: %s", self._init)
+        return self._init
 
     def _read(self, rel: str) -> str:
         with open(os.path.join(self.proc, rel), encoding="utf-8", errors="replace") as fh:
@@ -246,11 +317,21 @@ class LinuxCollector:
 
     def service_states(self) -> list[Metric]:
         out: list[Metric] = []
+        if not self.services:
+            return out
+        init = self.init_system()
+        build, parse = INIT_COMMANDS.get(init), INIT_PARSERS.get(init)
+        if build is None or parse is None:
+            # No recognised init system: skip rather than report every unit as down (false alarms).
+            if not self._warned_init:
+                log.warning("no supported init system detected; skipping %d configured service(s)",
+                            len(self.services))
+                self._warned_init = True
+            return out
         for unit in self.services:
             try:
-                r = subprocess.run(["systemctl", "is-active", "--", unit], capture_output=True, text=True, timeout=5,
-                                   check=False)
-                out.append(("service_up", unit, 1.0 if r.stdout.strip() == "active" else 0.0))
+                r = subprocess.run(build(unit), capture_output=True, text=True, timeout=5, check=False)
+                out.append(("service_up", unit, 1.0 if parse(r.returncode, r.stdout or "", r.stderr or "") else 0.0))
             except (OSError, subprocess.TimeoutExpired):
                 out.append(("service_up", unit, 0.0))
         return out
